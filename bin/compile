@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+# https://devcenter.heroku.com/articles/buildpack-api#bin-compile
+
+set -e
+
+BUILD_DIR="$1"
+CACHE_DIR="$2"
+ENV_DIR="$3"
+BUILDPACK_DIR="$(dirname "$(dirname "$0")")"
+
+BIN_DIR="$BUILD_DIR/bin"
+OPT_DIR="$BUILD_DIR/opt"
+mkdir -p "$BIN_DIR" "$OPT_DIR"
+
+TMP_DIR="$(mktemp -d 2>/dev/null)"
+
+
+echo "-----> edgedb-buildpack: Vendoring jq into slug"
+curl -sLo "$BIN_DIR/jq" "https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64"
+chmod +x "$BIN_DIR/jq"
+echo "-----> edgedb-buildpack: Installed $(${BIN_DIR}/jq --version)"
+
+
+echo "-----> edgedb-buildpack: Vendoring EdgeDB CLI into slug"
+curl -sLo "$TMP_DIR/edgedb" "https://packages.edgedb.com/dist/x86_64-unknown-linux-musl/edgedb-cli"
+chmod +x "$TMP_DIR/edgedb"
+cp "$TMP_DIR/edgedb" "$BIN_DIR/edgedb"
+echo "-----> edgedb-buildpack: Installed $(${BIN_DIR}/edgedb --version)"
+
+
+echo "-----> edgedb-buildpack: Vendoring edgedb-server into slug"
+VERSION="$(grep server-version ${BUILD_DIR}/edgedb.toml | cut -d '"' -f 2)"
+TMP_FILE="$TMP_DIR/edgedb-server-${VERSION}.tar.gz"
+
+REF="$(
+	curl -s https://packages.edgedb.com/archive/.jsonindexes/x86_64-unknown-linux-gnu.json \
+	| jq -r --arg version "$VERSION" \
+		'.packages[] | select(.basename = "edgedb-server") | select(.version | startswith($version + "+")).installrefs[] | select(.encoding == "gzip").ref'
+)"
+
+curl -so "$TMP_FILE" "https://packages.edgedb.com$REF"
+tar -xzf "$TMP_FILE" -C "$OPT_DIR"
+EDGEDB_DIR="$(find "$OPT_DIR" -name "edgedb-server-${VERSION}+*" -type d)"
+
+# link to a relative path because the directory used for compiling is
+# temporary. The fully qualified path will be different when deployed.
+ln -s "../opt/$(basename "$EDGEDB_DIR")/bin/edgedb-server" "${BIN_DIR}/edgedb-server"
+echo "-----> edgedb-buildpack: Installed $(${BIN_DIR}/edgedb-server --version)"
+
+cp "$BUILDPACK_DIR/bin/start-edgedb" "$BUILD_DIR/bin/"
+echo '-----> edgedb-buildpack: Added start-edgedb to app/bin'

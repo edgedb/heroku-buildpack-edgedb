@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+# https://devcenter.heroku.com/articles/buildpack-api#bin-detect
+
+BUILD_DIR="$1"
+
+error() {
+  local c="2,999 s/^/ !     /"
+
+	echo -e "\033[1;31m" # bold; red
+	echo -n " !     ERROR: "
+	# this will be fed from stdin
+  case $(uname) in
+		Darwin) sed -l "$c";; # mac/bsd sed: -l buffers on line boundaries
+		*)      sed -u "$c";; # unix/gnu sed: -u unbuffered (arbitrary) chunks of data
+	esac
+	echo -e "\033[0m" # reset style
+	exit 1
+}
+
+if [[ ! -f "$BUILD_DIR/edgedb.toml" ]]; then
+	error <<- EOF
+	Application not supported by the EdgeDB buildpack.
+
+	The EdgeDB buildpack is set on this application, but was unable to detect an
+	edgedb.toml file. EdgeDB on Heroku requires an edgedb.toml file at the root
+	of the directory structure. Run 'edgedb project init' in the project root to
+	add an edgedb.toml file
+
+	This directory has the following files:
+
+	$(ls -1p "$1")
+			
+	If you are trying to deploy an application that doesn't use EdgeDB, you need
+	to change the list of buildpacks set on your Heroku app using the 'heroku
+	buildpacks' command.
+			
+	For more information, refer to the following documentation:
+	https://devcenter.heroku.com/articles/buildpacks
+	https://www.edgedb.com/docs/guides/quickstart#initialize-a-project
+	EOF
+fi
+
+migration_file_count=$(
+	ls -1q ${BUILD_DIR}/dbschema/migrations/*.edgeql 2>/dev/null \
+	| wc -l
+)
+if [[ $migration_file_count == 0 ]]; then
+	error <<- EOF
+	The EdgeDB buildpack is set on this application, but was unable to detect
+	migration files 'dbschema/migraions/*.edgeql'. Please populate your schema
+	and create a migration.
+
+	For more information, refer to the following documentation:
+	https://www.edgedb.com/docs/guides/quickstart#generate-the-migration
+	EOF
+fi
+
+echo "EdgeDB"
+exit 0

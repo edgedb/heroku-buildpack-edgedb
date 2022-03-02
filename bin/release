@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+# https://devcenter.heroku.com/articles/buildpack-api#bin-release
+
+BUILD_DIR=$1
+
+cat << EOF
+---
+addons:
+  - heroku-postgresql
+EOF

@@ -1,0 +1,36 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - ci
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-18.04] # supported Heroku stacks
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+        with:
+          repository: kward/shunit2
+          ref: v2.1.8
+          path: opt/shunit2/src
+      - uses: actions/checkout@v3
+        with:
+          repository: heroku/heroku-buildpack-testrunner
+          ref: 706eaee0e596b1388894b5aad9bc967070be5690
+          path: opt/heroku-buildpack-testrunner
+
+      - name: Test
+        env:
+          BUILDPACK_TEST_RUNNER_HOME: "${{ github.workspace }}/opt/heroku-buildpack-testrunner"
+          SHUNIT_HOME: "${{ github.workspace }}/opt/shunit2"
+        run: |
+          make tests
