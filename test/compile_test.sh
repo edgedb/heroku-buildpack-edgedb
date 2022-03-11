@@ -10,17 +10,42 @@ testCompile() {
 	assertCaptured "Vendoring jq into slug"
 	assertCaptured "Installed jq-1.6"
 	assertCaptured "Vendoring EdgeDB CLI into slug"
-	assertCaptured "Installed EdgeDB CLI 1.1"
+	assertCaptured "Installed EdgeDB CLI"
 	assertCaptured "Vendoring edgedb-server into slug"
 	assertCaptured "Installed edgedb-server, version 1.1"
 
 	capture ${BUILD_DIR}/bin/edgedb --version
 	assertCapturedSuccess
-	assertCaptured "EdgeDB CLI 1.1"
+	assertCaptured "EdgeDB CLI"
 
 	capture ${BUILD_DIR}/bin/edgedb-server --version
 	assertCapturedSuccess
 	assertCaptured "edgedb-server, version 1.1"
+
+	capture ${BUILD_DIR}/bin/jq --version
+	assertCapturedSuccess
+	assertCaptured "jq-1.6"
+}
+
+testCompileNightly() {
+	printf '[edgedb]\nserver-version = "nightly"\n' > ${BUILD_DIR}/edgedb.toml
+
+	compile
+	assertCapturedSuccess
+	assertCaptured "Vendoring jq into slug"
+	assertCaptured "Installed jq-1.6"
+	assertCaptured "Vendoring EdgeDB CLI into slug"
+	assertCaptured "Installed EdgeDB CLI"
+	assertCaptured "Vendoring edgedb-server into slug"
+	assertCaptured "Installed edgedb-server, version"
+
+	capture ${BUILD_DIR}/bin/edgedb --version
+	assertCapturedSuccess
+	assertCaptured "EdgeDB CLI"
+
+	capture ${BUILD_DIR}/bin/edgedb-server --version
+	assertCapturedSuccess
+	assertCaptured "edgedb-server, version"
 
 	capture ${BUILD_DIR}/bin/jq --version
 	assertCapturedSuccess
