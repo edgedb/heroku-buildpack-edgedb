@@ -47,13 +47,23 @@ mkfifo $status_file
 
 # Start EdgeDB
 (
-	echo "buildpack=edgedb at=start-edgedb"
-	edgedb-server \
-		--port auto \
-		--bind-address localhost \
-		--emit-server-status $status_file \
-		--tls-cert-mode generate_self_signed \
-		--backend-dsn $dsn
+	args=(
+		"--port=auto"
+		"--bind-address=localhost"
+		"--emit-server-status=$status_file"
+		"--tls-cert-mode=generate_self_signed"
+		"--backend-dsn=$dsn"
+	)
+
+	if edgedb-server --help | grep -Fq -- --compiler-pool-mode; then
+		args+=("--compiler-pool-size=1")
+		args+=("--compiler-pool-mode=on_demand")
+		echo 'buildpack=edgedb at=start-edgedb desc="using on_demand compiler pool mode"'
+	else
+		echo "buildpack=edgedb at=start-edgedb"
+	fi
+
+	edgedb-server "${args[@]}"
 	echo 'edgedb' > $psmgr
 ) &
 
