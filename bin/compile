@@ -34,15 +34,34 @@ VERSION="$(grep server-version ${BUILD_DIR}/edgedb.toml | cut -d '"' -f 2)"
 TMP_FILE="$TMP_DIR/edgedb-server-${VERSION}.tar.gz"
 
 if [[ "$VERSION" == "nightly" ]]; then
-	REF="$(
-		curl -s https://packages.edgedb.com/archive/.jsonindexes/x86_64-unknown-linux-gnu.nightly.json \
-		| jq -r '.packages | sort_by(.version) | reverse | .[0].installrefs[] | select(.encoding == "gzip").ref'
+	index="$(curl -s https://packages.edgedb.com/archive/.jsonindexes/x86_64-unknown-linux-gnu.nightly.json)"
+	ver_key="$(
+		echo "$index" \
+		| jq -r "
+			.packages[]
+			| select(.basename == \"edgedb-server\")
+			| .version_key" \
+		| sort --version-sort --reverse \
+		| head -n 1
 	)"
+	query="
+		.packages[]
+		| select(.basename == \"edgedb-server\")
+		| select(.version_key == \"$ver_key\")
+		| .installrefs[]
+		| select(.encoding == \"gzip\")
+		| .ref"
+	REF="$(echo "$index" | jq -r "$query")"
 else
 	REF="$(
 		curl -s https://packages.edgedb.com/archive/.jsonindexes/x86_64-unknown-linux-gnu.json \
-		| jq -r --arg version "$VERSION" \
-			'.packages[] | select(.basename = "edgedb-server") | select(.version | startswith($version + "+")).installrefs[] | select(.encoding == "gzip").ref'
+		| jq -r "
+			.packages[]
+			| select(.basename = \"edgedb-server\")
+			| select(.version | startswith(\"$VERSION\" + \"+\"))
+			| .installrefs[]
+			| select(.encoding == \"gzip\")
+			| .ref"
 	)"
 fi
 
